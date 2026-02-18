@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Wrist Rehabilitation Therapy</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main id="app">
+    <section id="authScene" class="scene active card">
+      <h1>🎈 Wrist Rehabilitation Therapy</h1>
+      <p class="muted">Patient Login / Register</p>
+      <label>
+        Patient ID
+        <input id="loginPatientId" placeholder="e.g. P1001" required />
+      </label>
+      <label>
+        Password
+        <input id="loginPassword" type="password" placeholder="Password" required />
+      </label>
+      <div class="actions">
+        <button id="loginBtn" class="primary">Login</button>
+        <button id="registerBtn">Register</button>
+      </div>
+      <p id="authMessage" class="hint"></p>
+    </section>
+
+    <section id="startScene" class="scene card">
+      <div class="top-row">
+        <h2>Wrist Rehabilitation Therapy (Web)</h2>
+        <button id="logoutBtn" class="danger">Logout</button>
+      </div>
+      <p class="muted">Welcome, <strong id="activePatientLabel">-</strong></p>
+      <div id="dailyActivityPanel" class="storage-box"></div>
+      <div class="actions">
+        <button id="startBtn" class="primary">Start Session</button>
+        <button id="settingsBtn">Settings</button>
+      </div>
+    </section>
+
+    <section id="settingsScene" class="scene card">
+      <h2>Input Settings</h2>
+      <label>
+        Control Mode
+        <select id="controlModeSelect">
+          <option value="camera">Camera-based hand motion</option>
+          <option value="joystick">Joystick (Gamepad API)</option>
+          <option value="mouse">Mouse / Touch (test mode)</option>
+        </select>
+      </label>
+      <p class="hint">Unique sign for cursor movement: hold your hand at top-left camera zone for 1 second.</p>
+      <p id="inputStatus" class="hint"></p>
+      <div class="actions">
+        <button id="saveSettingsBtn" class="primary">Save Settings</button>
+        <button data-back="startScene">Back</button>
+      </div>
+    </section>
+
+    <section id="patientScene" class="scene card">
+      <h2>Patient Entry</h2>
+      <form id="patientForm">
+        <label>Patient Name <input id="patientName" required /></label>
+        <label>Age <input id="patientAge" type="number" min="1" max="120" required /></label>
+        <label>
+          Gender
+          <select id="patientGender"><option>Male</option><option>Female</option><option>Other</option></select>
+        </label>
+        <label>
+          Affected Hand
+          <select id="affectedHand"><option>Left</option><option>Right</option></select>
+        </label>
+        <label>
+          Time Since Stroke
+          <select id="strokeTime"><option>&lt; 3 months</option><option>3–6 months</option><option>&gt; 6 months</option></select>
+        </label>
+        <div class="actions">
+          <button type="submit" class="primary">Start Level 1</button>
+          <button type="button" data-back="startScene">Back</button>
+        </div>
+      </form>
+    </section>
+
+    <section id="levelScene" class="scene">
+      <header class="hud">
+        <div><strong id="levelName">Level 1</strong></div>
+        <div>Pops: <span id="popCounter">0/0</span></div>
+        <div>Timer: <span id="timerValue">0.0</span>s</div>
+        <div>Target Time: <span id="targetTimeValue">--</span></div>
+        <div>Control: <span id="controlModeLabel">camera</span></div>
+        <div>Sign: <span id="gestureState">locked</span></div>
+      </header>
+      <div id="playArea" class="play-area">
+        <canvas id="trailCanvas"></canvas>
+        <div id="cursor"></div>
+      </div>
+      <video id="cameraPreview" autoplay playsinline muted></video>
+    </section>
+
+    <section id="levelCompleteScene" class="scene card">
+      <h2>Level Complete</h2>
+      <p>Level: <strong id="levelNumber"></strong></p>
+      <p>Score: <strong id="levelScore"></strong></p>
+      <p>Time Taken: <strong id="levelTime"></strong></p>
+      <p>Target Time: <strong id="targetTimeInfo"></strong></p>
+      <p id="taskTriggerInfo" class="hint"></p>
+      <div class="actions">
+        <button id="nextLevelBtn" class="primary">Next</button>
+        <button id="retryLevelBtn">Retry</button>
+      </div>
+    </section>
+
+    <section id="taskScene" class="scene card">
+      <h2>Assigned Therapeutic Activity</h2>
+      <p id="taskText"></p>
+      <p>Task Timer: <strong id="taskTimer">30</strong>s</p>
+      <div class="actions">
+        <button id="startTaskBtn" class="primary">Start Task</button>
+        <button id="taskDoneBtn">I Completed Task</button>
+        <button id="taskNotDoneBtn" class="danger">Not Completed</button>
+      </div>
+    </section>
+
+    <section id="summaryScene" class="scene card summary-card">
+      <h2>Session Analytics Summary</h2>
+      <div id="summaryContent"></div>
+      <canvas id="analyticsChart" width="760" height="280"></canvas>
+      <div id="storageInfo" class="storage-box"></div>
+      <div class="actions">
+        <button id="downloadJsonBtn">Download JSON</button>
+        <button id="downloadCsvBtn">Download CSV</button>
+        <button id="restartBtn" class="primary">Return to Start</button>
+      </div>
+    </section>
+  </main>
+
+  <template id="balloonTemplate">
+    <button class="balloon" aria-label="balloon">🎈</button>
+  </template>
+
+  <script src="app.js"></script>
+</body>
+</html>
