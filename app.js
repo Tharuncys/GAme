@@ -41,11 +41,9 @@ const els = {
   appVersion: document.getElementById("appVersion"),
   loginPatientId: document.getElementById("loginPatientId"),
   loginPassword: document.getElementById("loginPassword"),
-  registerPatientName: document.getElementById("registerPatientName"),
-  registerAge: document.getElementById("registerAge"),
-  registerGender: document.getElementById("registerGender"),
-  registerHand: document.getElementById("registerHand"),
-  registerStrokeTime: document.getElementById("registerStrokeTime"),
+  openRegisterBtn: document.getElementById("openRegisterBtn"),
+  registerUserId: document.getElementById("registerUserId"),
+  registerUserPassword: document.getElementById("registerUserPassword"),
   authMessage: document.getElementById("authMessage"),
   activePatientLabel: document.getElementById("activePatientLabel"),
   dailyActivityPanel: document.getElementById("dailyActivityPanel"),
@@ -507,24 +505,7 @@ const renderSummary = async () => {
 };
 
 const attachEvents = () => {
-  document.getElementById("registerBtn").addEventListener("click", async () => {
-    const id = els.loginPatientId.value.trim();
-    const pw = els.loginPassword.value;
-    if (!id || !pw) return (els.authMessage.textContent = "Enter patient ID and password.");
-    const profile = {
-      patientName: els.registerPatientName.value.trim(),
-      age: Number(els.registerAge.value || 0),
-      gender: els.registerGender.value,
-      affectedHand: els.registerHand.value,
-      timeSinceStroke: els.registerStrokeTime.value,
-    };
-    if (!profile.patientName || !profile.age) {
-      els.authMessage.textContent = "For registration, fill Patient Name and Age.";
-      return;
-    }
-    const result = await registerUser({ patientId: id, password: pw, profile });
-    els.authMessage.textContent = result.message || (result.ok ? "Registered. Now login." : "Registration failed.");
-  });
+  els.openRegisterBtn.addEventListener("click", () => showScene("patientScene"));
 
   document.getElementById("loginBtn").addEventListener("click", async () => {
     const id = els.loginPatientId.value.trim();
@@ -554,7 +535,7 @@ const attachEvents = () => {
       state.sessionStartTs = Date.now();
       startLevel(0);
     } else {
-      showScene("patientScene");
+      showScene("authScene");
     }
   });
   document.querySelectorAll("[data-back]").forEach((btn) => btn.addEventListener("click", () => showScene(btn.dataset.back)));
@@ -566,21 +547,26 @@ const attachEvents = () => {
     showScene("startScene");
   });
 
-  document.getElementById("patientForm").addEventListener("submit", (e) => {
+  document.getElementById("registerForm").addEventListener("submit", async (e) => {
     e.preventDefault();
-    state.patient = {
+    const id = els.registerUserId.value.trim();
+    const pw = els.registerUserPassword.value;
+    if (!id || !pw) return;
+
+    const profile = {
       patientName: document.getElementById("patientName").value.trim(),
       age: Number(document.getElementById("patientAge").value),
       gender: document.getElementById("patientGender").value,
       affectedHand: document.getElementById("affectedHand").value,
       timeSinceStroke: document.getElementById("strokeTime").value,
-      userId: state.activeUserId,
-      sessionDate: new Date().toISOString(),
+      sessionDate: new Date().toISOString()
     };
-    state.levelReports = [];
-    state.totalPops = 0;
-    state.sessionStartTs = Date.now();
-    startLevel(0);
+    const result = await registerUser({ patientId: id, password: pw, profile });
+    els.authMessage.textContent = result.message || (result.ok ? "Registered. Now login." : "Registration failed.");
+    if (!result.ok) return;
+    els.loginPatientId.value = id;
+    els.loginPassword.value = "";
+    showScene("authScene");
   });
 
   els.playArea.addEventListener("pointermove", (e) => {
