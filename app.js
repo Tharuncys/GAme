@@ -43,6 +43,8 @@ const els = {
   navProfileBtn: document.getElementById("navProfileBtn"),
   navDashboardBtn: document.getElementById("navDashboardBtn"),
   navGameBtn: document.getElementById("navGameBtn"),
+  hubMenuToggleBtn: document.getElementById("hubMenuToggleBtn"),
+  hubPrimaryNav: document.getElementById("hubPrimaryNav"),
   hubLogoutBtn: document.getElementById("hubLogoutBtn"),
   hubOpenLoginBtn: document.getElementById("hubOpenLoginBtn"),
   hubOpenRegisterBtn: document.getElementById("hubOpenRegisterBtn"),
@@ -641,6 +643,20 @@ const showHubPanel = (panelId) => {
   if (panel) panel.classList.add("active");
 };
 
+const setHubActiveNav = (section) => {
+  const mapping = {
+    profile: els.navProfileBtn,
+    dashboard: els.navDashboardBtn,
+    game: els.navGameBtn
+  };
+  [els.navProfileBtn, els.navDashboardBtn, els.navGameBtn].forEach((btn) => btn?.classList.remove("active"));
+  mapping[section]?.classList.add("active");
+};
+
+const toggleHubMenu = () => {
+  els.hubPrimaryNav?.classList.toggle("collapsed");
+};
+
 const openHubSection = async (section) => {
   const needsAuth = !state.activeUserId;
   if (needsAuth) {
@@ -648,6 +664,7 @@ const openHubSection = async (section) => {
     showHubPanel("hubAuthPanel");
     return;
   }
+  setHubActiveNav(section);
   showScene("hubScene");
 
   if (section === "profile") {
@@ -731,6 +748,7 @@ const attachEvents = () => {
   if (els.navProfileBtn) els.navProfileBtn.addEventListener("click", () => openHubSection("profile"));
   if (els.navDashboardBtn) els.navDashboardBtn.addEventListener("click", () => openHubSection("dashboard"));
   if (els.navGameBtn) els.navGameBtn.addEventListener("click", () => openHubSection("game"));
+  if (els.hubMenuToggleBtn) els.hubMenuToggleBtn.addEventListener("click", toggleHubMenu);
   if (els.hubOpenLoginBtn) els.hubOpenLoginBtn.addEventListener("click", () => showScene("authScene"));
   if (els.hubOpenRegisterBtn) els.hubOpenRegisterBtn.addEventListener("click", () => showScene("patientScene"));
   if (els.hubStartGameBtn) els.hubStartGameBtn.addEventListener("click", () => {
