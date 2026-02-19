@@ -591,7 +591,7 @@ const attachEvents = () => {
 };
 
 const init = () => {
-  els.appVersion.textContent = VERSION;
+  if (els.appVersion) els.appVersion.textContent = VERSION;
   els.controlModeSelect.value = state.settings.controlMode;
   attachEvents();
   showScene("authScene");
