@@ -2,6 +2,7 @@ const VERSION = "1.3.0";
 const SESSION_STORAGE_KEY = "rehab-balloon-session-history";
 const USER_STORAGE_KEY = "rehab-balloon-users";
 const LEVEL_BASELINE_KEY = "rehab-level-baselines";
+const API_BASE = "";
 
 const LEVELS = [
   { id: 1, name: "Level 1 – Basic Pop", targetPops: 10, speed: 0.7, balloonCount: 1, timeLimit: 0, enableShrink: false, shrinkFactor: 1 },
@@ -86,31 +87,83 @@ const saveUsers = (users) => localStorage.setItem(USER_STORAGE_KEY, JSON.stringi
 const getBaselines = () => JSON.parse(localStorage.getItem(LEVEL_BASELINE_KEY) || "{}");
 const saveBaselines = (all) => localStorage.setItem(LEVEL_BASELINE_KEY, JSON.stringify(all));
 
-const getUserBaseline = () => {
-  const all = getBaselines();
-  return all[state.activeUserId] || {};
-};
-const setUserBaseline = (baseline) => {
-  const all = getBaselines();
-  all[state.activeUserId] = baseline;
-  saveBaselines(all);
-  state.baselineTimes = baseline;
+const apiRequest = async (path, method = "GET", body) => {
+  try {
+    const response = await fetch(`${API_BASE}${path}`, {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    if (!response.ok) throw new Error("api error");
+    return await response.json();
+  } catch {
+    return null;
+  }
 };
 
-const getSessions = () => JSON.parse(localStorage.getItem(SESSION_STORAGE_KEY) || "[]");
-const setSessions = (sessions) => localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(sessions));
+const registerUser = async (patientId, password) => {
+  const remote = await apiRequest("/api/register", "POST", { patientId, password });
+  if (remote) return remote;
+  const users = getUsers();
+  if (users[patientId]) return { ok: false, message: "User exists. Please login." };
+  users[patientId] = { password, createdAt: new Date().toISOString() };
+  saveUsers(users);
+  return { ok: true, message: "Registered. Now login." };
+};
 
-const updateDailyPanel = () => {
-  const sessions = getSessions().filter((s) => s.userId === state.activeUserId);
+const loginUser = async (patientId, password) => {
+  const remote = await apiRequest("/api/login", "POST", { patientId, password });
+  if (remote) return remote;
+  const users = getUsers();
+  if (!users[patientId] || users[patientId].password !== password) return { ok: false, message: "Invalid credentials." };
+  return { ok: true };
+};
+
+const saveSessionRemote = async (session) => {
+  const remote = await apiRequest("/api/session", "POST", session);
+  if (remote) return;
+  const all = JSON.parse(localStorage.getItem(SESSION_STORAGE_KEY) || "[]");
+  all.unshift(session);
+  localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(all.slice(0, 100)));
+};
+
+const fetchDailyActivity = async (userId) => {
+  const remote = await apiRequest(`/api/daily-activity?userId=${encodeURIComponent(userId)}`);
+  if (remote?.ok) return remote;
+  const sessions = JSON.parse(localStorage.getItem(SESSION_STORAGE_KEY) || "[]").filter((s) => s.userId === userId);
   const today = sessions.filter((s) => s.dateKey === todayKey());
-  const levels = today.reduce((a, s) => a + s.totals.totalLevelsCompleted, 0);
-  const tasksDone = today.reduce((a, s) => a + s.taskStats.completed, 0);
+  return {
+    ok: true,
+    date: todayKey(),
+    sessionsToday: today.length,
+    levelsToday: today.reduce((a, s) => a + s.totals.totalLevelsCompleted, 0),
+    tasksDoneToday: today.reduce((a, s) => a + s.taskStats.completed, 0),
+  };
+};
+
+const fetchBaseline = async (userId) => {
+  const remote = await apiRequest(`/api/baseline?userId=${encodeURIComponent(userId)}`);
+  if (remote?.ok) return remote.baseline || {};
+  const all = getBaselines();
+  return all[userId] || {};
+};
+
+const persistBaseline = async (userId, baseline) => {
+  const remote = await apiRequest("/api/baseline", "POST", { userId, baseline });
+  if (remote?.ok) return;
+  const all = getBaselines();
+  all[userId] = baseline;
+  saveBaselines(all);
+};
+
+const updateDailyPanel = async () => {
+  const daily = await fetchDailyActivity(state.activeUserId);
   els.dailyActivityPanel.innerHTML = `
     <h3>Daily Game Activity</h3>
-    <p>Date: <strong>${todayKey()}</strong></p>
-    <p>Sessions today: <strong>${today.length}</strong></p>
-    <p>Total levels completed today: <strong>${levels}</strong></p>
-    <p>Therapeutic tasks completed today: <strong>${tasksDone}</strong></p>
+    <p>Date: <strong>${daily.date}</strong></p>
+    <p>Sessions today: <strong>${daily.sessionsToday}</strong></p>
+    <p>Total levels completed today: <strong>${daily.levelsToday}</strong></p>
+    <p>Therapeutic tasks completed today: <strong>${daily.tasksDoneToday}</strong></p>
   `;
 };
 
@@ -260,11 +313,11 @@ const resetLevelRuntime = () => {
   state.cameraGesture.holdStart = 0;
 };
 
-const maybeAssignTask = (levelId, timeTaken) => {
+const maybeAssignTask = async (levelId, timeTaken) => {
   const target = state.baselineTimes[levelId];
   if (!target) {
     state.baselineTimes[levelId] = timeTaken;
-    setUserBaseline(state.baselineTimes);
+    await persistBaseline(state.activeUserId, state.baselineTimes);
     return null;
   }
   if (timeTaken <= target) return null;
@@ -277,14 +330,14 @@ const maybeAssignTask = (levelId, timeTaken) => {
   };
 };
 
-const finishLevel = () => {
+const finishLevel = async () => {
   state.levelRuntime.levelRunning = false;
   cancelAnimationFrame(state.rafId);
 
   const cfg = currentLevel();
   const timeTaken = (Date.now() - state.levelStartTs) / 1000;
   const accuracy = (state.levelRuntime.currentPops / Math.max(1, state.levelRuntime.currentPops + state.levelRuntime.misses)) * 100;
-  const task = maybeAssignTask(cfg.id, timeTaken);
+  const task = await maybeAssignTask(cfg.id, timeTaken);
 
   state.levelReports.push({
     level: cfg.id,
@@ -418,11 +471,9 @@ const saveBlob = (filename, content, type) => {
   URL.revokeObjectURL(a.href);
 };
 
-const renderSummary = () => {
+const renderSummary = async () => {
   const session = buildSession();
-  const all = getSessions();
-  all.unshift(session);
-  setSessions(all.slice(0, 100));
+  await saveSessionRemote(session);
 
   els.summaryContent.innerHTML = `
     <p><strong>Patient:</strong> ${session.patient.patientName} (${session.userId})</p>
@@ -433,31 +484,28 @@ const renderSummary = () => {
 
   drawAnalyticsChart(session);
   els.storageInfo.innerHTML = `<p>Stored in browser localStorage: <code>${SESSION_STORAGE_KEY}</code>, user profiles: <code>${USER_STORAGE_KEY}</code>, level baselines: <code>${LEVEL_BASELINE_KEY}</code>.</p>`;
-  updateDailyPanel();
+  await updateDailyPanel();
   showScene("summaryScene");
 };
 
 const attachEvents = () => {
-  document.getElementById("registerBtn").addEventListener("click", () => {
+  document.getElementById("registerBtn").addEventListener("click", async () => {
     const id = els.loginPatientId.value.trim();
     const pw = els.loginPassword.value;
     if (!id || !pw) return (els.authMessage.textContent = "Enter patient ID and password.");
-    const users = getUsers();
-    if (users[id]) return (els.authMessage.textContent = "User exists. Please login.");
-    users[id] = { password: pw, createdAt: new Date().toISOString() };
-    saveUsers(users);
-    els.authMessage.textContent = "Registered. Now login.";
+    const result = await registerUser(id, pw);
+    els.authMessage.textContent = result.message || (result.ok ? "Registered. Now login." : "Registration failed.");
   });
 
-  document.getElementById("loginBtn").addEventListener("click", () => {
+  document.getElementById("loginBtn").addEventListener("click", async () => {
     const id = els.loginPatientId.value.trim();
     const pw = els.loginPassword.value;
-    const users = getUsers();
-    if (!users[id] || users[id].password !== pw) return (els.authMessage.textContent = "Invalid credentials.");
+    const result = await loginUser(id, pw);
+    if (!result.ok) return (els.authMessage.textContent = result.message || "Invalid credentials.");
     state.activeUserId = id;
-    state.baselineTimes = getUserBaseline();
+    state.baselineTimes = await fetchBaseline(id);
     els.activePatientLabel.textContent = id;
-    updateDailyPanel();
+    await updateDailyPanel();
     showScene("startScene");
   });
 
