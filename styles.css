@@ -388,3 +388,34 @@ button:disabled { opacity:.55; cursor:not-allowed; transform:none; }
   .portal-sidebar { display:none; }
   .portal-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
 }
+
+
+.app-hub {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  gap: 1rem;
+  align-items: start;
+}
+
+.hub-sidebar {
+  position: sticky;
+  top: 1rem;
+}
+
+.hub-sidebar button {
+  width: 100%;
+  text-align: left;
+  margin-bottom: .45rem;
+}
+
+.hub-main { min-height: 76vh; }
+.hub-panel { display: none; }
+.hub-panel.active { display: block; }
+.hub-panel ul { margin: .5rem 0 0 1.1rem; }
+
+#hubProfileContent p, #hubDashboardContent p { margin: .35rem 0; }
+
+@media (max-width: 980px) {
+  .app-hub { grid-template-columns: 1fr; }
+  .hub-sidebar { position: static; }
+}

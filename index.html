@@ -8,37 +8,40 @@
 </head>
 <body>
   <main id="app" class="arcade-shell">
-    <section id="portalScene" class="scene active portal-scene">
-      <aside class="portal-sidebar">
-        <div class="brand">🎮 Rehab Arcade</div>
-        <nav>
-          <button class="portal-nav active">New Games</button>
-          <button class="portal-nav">Trending Now</button>
-          <button class="portal-nav">Popular Games</button>
-          <hr />
-          <button class="portal-nav">Driving</button>
-          <button class="portal-nav">Shooting</button>
-          <button class="portal-nav">Sports</button>
-          <button class="portal-nav">Arcade &amp; Classic</button>
-        </nav>
+    <section id="hubScene" class="scene active app-hub">
+      <aside class="hub-sidebar card">
+        <h2>Rehab App</h2>
+        <button id="navProfileBtn">Profile</button>
+        <button id="navDashboardBtn">Dashboard</button>
+        <button id="navGameBtn">Game</button>
+        <button id="hubLogoutBtn" class="danger">Logout</button>
       </aside>
-      <div class="portal-main">
-        <header class="portal-topbar">
-          <input class="portal-search" placeholder="Search our 100,000 Games" />
+      <div class="hub-main card" id="hubMain">
+        <div id="hubEmptyPanel" class="hub-panel active"><p class="muted">Select Profile, Dashboard, or Game from the left menu.</p></div>
+        <div id="hubAuthPanel" class="hub-panel">
+          <h3>Login / Register</h3>
+          <p class="hint">Please login first, or create a new account.</p>
           <div class="actions">
-            <button id="portalLoginBtn">Log in</button>
-            <button id="portalRegisterBtn" class="primary">Register</button>
+            <button id="hubOpenLoginBtn" class="primary">Open Login</button>
+            <button id="hubOpenRegisterBtn">Open Register</button>
           </div>
-        </header>
-        <div class="portal-grid">
-          <div class="portal-feature">Driving</div>
-          <div class="portal-card"></div><div class="portal-card"></div><div class="portal-card"></div>
-          <div class="portal-feature">Shooting</div>
-          <div class="portal-card"></div><div class="portal-card"></div><div class="portal-card"></div>
-          <div class="portal-feature">For Girls</div>
-          <div class="portal-card"></div><div class="portal-card"></div><div class="portal-card"></div>
         </div>
-        <p class="hint">Portal style home inspired by arcade catalogs. Use Log in/Register to access therapy gameplay.</p>
+        <div id="hubProfilePanel" class="hub-panel">
+          <h3>Patient Profile</h3>
+          <div id="hubProfileContent"></div>
+        </div>
+        <div id="hubDashboardPanel" class="hub-panel">
+          <h3>Dashboard</h3>
+          <div id="hubDashboardContent"></div>
+        </div>
+        <div id="hubGamePanel" class="hub-panel">
+          <h3>Game</h3>
+          <p class="hint">Start your rehab balloon game session.</p>
+          <div class="actions">
+            <button id="hubStartGameBtn" class="primary">Start Game</button>
+            <button id="hubSettingsBtn">Game Settings</button>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -105,7 +108,7 @@
       <p id="inputStatus" class="hint"></p>
       <div class="actions">
         <button id="saveSettingsBtn" class="primary">Save Settings</button>
-        <button data-back="startScene">Back</button>
+        <button data-back="hubScene">Back</button>
       </div>
     </section>
 

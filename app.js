@@ -40,8 +40,16 @@ const state = {
 
 const els = {
   appVersion: document.getElementById("appVersion"),
-  portalLoginBtn: document.getElementById("portalLoginBtn"),
-  portalRegisterBtn: document.getElementById("portalRegisterBtn"),
+  navProfileBtn: document.getElementById("navProfileBtn"),
+  navDashboardBtn: document.getElementById("navDashboardBtn"),
+  navGameBtn: document.getElementById("navGameBtn"),
+  hubLogoutBtn: document.getElementById("hubLogoutBtn"),
+  hubOpenLoginBtn: document.getElementById("hubOpenLoginBtn"),
+  hubOpenRegisterBtn: document.getElementById("hubOpenRegisterBtn"),
+  hubProfileContent: document.getElementById("hubProfileContent"),
+  hubDashboardContent: document.getElementById("hubDashboardContent"),
+  hubStartGameBtn: document.getElementById("hubStartGameBtn"),
+  hubSettingsBtn: document.getElementById("hubSettingsBtn"),
   loginPatientId: document.getElementById("loginPatientId"),
   loginPassword: document.getElementById("loginPassword"),
   openRegisterBtn: document.getElementById("openRegisterBtn"),
@@ -627,6 +635,64 @@ const saveBlob = (filename, content, type) => {
   URL.revokeObjectURL(a.href);
 };
 
+const showHubPanel = (panelId) => {
+  document.querySelectorAll(".hub-panel").forEach((p) => p.classList.remove("active"));
+  const panel = document.getElementById(panelId);
+  if (panel) panel.classList.add("active");
+};
+
+const openHubSection = async (section) => {
+  const needsAuth = !state.activeUserId;
+  if (needsAuth) {
+    showScene("hubScene");
+    showHubPanel("hubAuthPanel");
+    return;
+  }
+  showScene("hubScene");
+
+  if (section === "profile") {
+    const p = state.patient || await getUserProfile(state.activeUserId) || {};
+    state.patient = { ...p, userId: state.activeUserId };
+    if (els.hubProfileContent) {
+      els.hubProfileContent.innerHTML = `
+        <p><strong>Name:</strong> ${p.patientName || "-"}</p>
+        <p><strong>Age:</strong> ${p.age || "-"}</p>
+        <p><strong>Gender:</strong> ${p.gender || "-"}</p>
+        <p><strong>Affected Hand:</strong> ${p.affectedHand || "-"}</p>
+        <p><strong>Stroke Time:</strong> ${p.timeSinceStroke || "-"}</p>
+      `;
+    }
+    showHubPanel("hubProfilePanel");
+    return;
+  }
+
+  if (section === "dashboard") {
+    const daily = await fetchDailyActivity(state.activeUserId);
+    const sessions = JSON.parse(localStorage.getItem(SESSION_STORAGE_KEY) || "[]")
+      .filter((x) => x.userId === state.activeUserId)
+      .sort((a, b) => (b.savedAt || "").localeCompare(a.savedAt || ""));
+    const latest = sessions[0];
+    const recent = sessions.slice(0, 5);
+    const items = recent.map((r) => `<li>${(r.savedAt || r.dateKey || "").slice(0, 16)} — Levels: ${r.totals?.totalLevelsCompleted || r.levels?.length || 0}, Tasks: ${r.taskStats?.completed || 0}</li>`).join("");
+    if (els.hubDashboardContent) {
+      els.hubDashboardContent.innerHTML = `
+        <p><strong>Sessions today:</strong> ${daily.sessionsToday}</p>
+        <p><strong>Levels today:</strong> ${daily.levelsToday}</p>
+        <p><strong>Tasks done today:</strong> ${daily.tasksDoneToday}</p>
+        <p><strong>Latest session:</strong> ${latest ? `${latest.totals?.totalLevelsCompleted || latest.levels?.length || 0} levels, ${latest.taskStats?.completed || 0} tasks completed` : "No sessions yet"}</p>
+        <h4>Recent sessions</h4>
+        <ul>${items || "<li>No data</li>"}</ul>
+      `;
+    }
+    showHubPanel("hubDashboardPanel");
+    return;
+  }
+
+  if (section === "game") {
+    showHubPanel("hubGamePanel");
+  }
+};
+
 const renderSummary = async () => {
   const previousSessions = JSON.parse(localStorage.getItem(SESSION_STORAGE_KEY) || "[]")
     .filter((s) => s.userId === state.activeUserId);
@@ -662,8 +728,27 @@ const renderSummary = async () => {
 };
 
 const attachEvents = () => {
-  if (els.portalLoginBtn) els.portalLoginBtn.addEventListener("click", () => showScene("authScene"));
-  if (els.portalRegisterBtn) els.portalRegisterBtn.addEventListener("click", () => showScene("patientScene"));
+  if (els.navProfileBtn) els.navProfileBtn.addEventListener("click", () => openHubSection("profile"));
+  if (els.navDashboardBtn) els.navDashboardBtn.addEventListener("click", () => openHubSection("dashboard"));
+  if (els.navGameBtn) els.navGameBtn.addEventListener("click", () => openHubSection("game"));
+  if (els.hubOpenLoginBtn) els.hubOpenLoginBtn.addEventListener("click", () => showScene("authScene"));
+  if (els.hubOpenRegisterBtn) els.hubOpenRegisterBtn.addEventListener("click", () => showScene("patientScene"));
+  if (els.hubStartGameBtn) els.hubStartGameBtn.addEventListener("click", () => {
+    if (!state.activeUserId) return openHubSection("game");
+    state.levelReports = [];
+    state.totalPops = 0;
+    state.adaptiveSpeedBoost = 0;
+    state.sessionStartTs = Date.now();
+    startLevel(0);
+  });
+  if (els.hubSettingsBtn) els.hubSettingsBtn.addEventListener("click", () => showScene("settingsScene"));
+  if (els.hubLogoutBtn) els.hubLogoutBtn.addEventListener("click", () => {
+    stopCameraTracking();
+    state.activeUserId = null;
+    showHubPanel("hubAuthPanel");
+    showScene("hubScene");
+  });
+
   els.openRegisterBtn.addEventListener("click", () => showScene("patientScene"));
 
   document.getElementById("loginBtn").addEventListener("click", async () => {
@@ -677,20 +762,22 @@ const attachEvents = () => {
     state.baselineTimes = await fetchBaseline(id);
     els.activePatientLabel.textContent = id;
     await updateDailyPanel();
-    showScene("startScene");
+    await openHubSection("dashboard");
   });
 
   document.getElementById("logoutBtn").addEventListener("click", () => {
     stopCameraTracking();
     state.activeUserId = null;
-    showScene("portalScene");
+    showHubPanel("hubAuthPanel");
+    showScene("hubScene");
   });
 
   document.getElementById("settingsBtn").addEventListener("click", () => showScene("settingsScene"));
   document.getElementById("startBtn").addEventListener("click", () => {
     if (!state.activeUserId) {
       els.authMessage.textContent = "Please login to start a session.";
-      showScene("authScene");
+      showScene("hubScene");
+      showHubPanel("hubAuthPanel");
       return;
     }
 
@@ -708,7 +795,8 @@ const attachEvents = () => {
     state.settings.adaptiveSpeed = Boolean(els.adaptiveSpeedToggle.checked);
     if (state.settings.controlMode === "camera") await beginCameraTracking();
     else stopCameraTracking();
-    showScene("startScene");
+    showScene("hubScene");
+    showHubPanel("hubGamePanel");
   });
 
   document.getElementById("registerForm").addEventListener("submit", async (e) => {
@@ -792,7 +880,7 @@ const attachEvents = () => {
     saveBlob(`session-${Date.now()}.csv`, [h, ...rows].join("\n"), "text/csv");
   });
 
-  document.getElementById("restartBtn").addEventListener("click", () => showScene("startScene"));
+  document.getElementById("restartBtn").addEventListener("click", () => openHubSection("dashboard"));
 };
 
 const init = () => {
@@ -807,7 +895,8 @@ const init = () => {
     });
   }
   attachEvents();
-  showScene("portalScene");
+  showScene("hubScene");
+  showHubPanel("hubAuthPanel");
 };
 
 window.addEventListener("beforeunload", () => stopCameraTracking());
