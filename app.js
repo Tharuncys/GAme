@@ -632,7 +632,8 @@ const renderSummary = async () => {
 
   const rows = session.levels.map((l) => {
     const badge = improvementBadge(l.level, l.timeTakenSec, previousSessions);
-    return `<tr><td>L${l.level}</td><td>${l.timeTakenSec.toFixed(2)}s <span class="trend-pill ${badge.cls}">${badge.label}</span></td><td>${(l.targetTimeSec ?? l.timeTakenSec).toFixed(2)}s</td><td>${l.accuracy.toFixed(1)}%</td><td>${l.assignedTask ? "Yes" : "No"}</td><td>${l.taskCompleted === null ? "-" : (l.taskCompleted ? "Done" : "Not done")}</td></tr>`;
+    const icon = badge.cls === "improved" ? "▲" : badge.cls === "declined" ? "▼" : "●";
+    return `<tr><td>L${l.level}</td><td>${l.timeTakenSec.toFixed(2)}s <span class="trend-pill ${badge.cls}">${icon} ${badge.label}</span></td><td>${(l.targetTimeSec ?? l.timeTakenSec).toFixed(2)}s</td><td>${l.accuracy.toFixed(1)}%</td><td>${l.assignedTask ? "Yes" : "No"}</td><td>${l.taskCompleted === null ? "-" : (l.taskCompleted ? "Done" : "Not done")}</td></tr>`;
   }).join("");
 
   if (els.dashboardTitle) {
