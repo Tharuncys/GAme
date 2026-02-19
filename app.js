@@ -47,6 +47,7 @@ const els = {
   registerUserPassword: document.getElementById("registerUserPassword"),
   authMessage: document.getElementById("authMessage"),
   activePatientLabel: document.getElementById("activePatientLabel"),
+  dailySnapshot: document.getElementById("dailySnapshot"),
   dailyActivityPanel: document.getElementById("dailyActivityPanel"),
   controlModeSelect: document.getElementById("controlModeSelect"),
   speedMultiplier: document.getElementById("speedMultiplier"),
@@ -73,9 +74,10 @@ const els = {
   taskNotDoneBtn: document.getElementById("taskNotDoneBtn"),
   startTaskBtn: document.getElementById("startTaskBtn"),
   taskGateMessage: document.getElementById("taskGateMessage"),
+  dashboardTitle: document.getElementById("dashboardTitle"),
   summaryContent: document.getElementById("summaryContent"),
-  analyticsChart: document.getElementById("analyticsChart"),
-  dailyTrendChart: document.getElementById("dailyTrendChart"),
+  dailyProgressChart: document.getElementById("dailyProgressChart"),
+  levelTrendGrid: document.getElementById("levelTrendGrid"),
   storageInfo: document.getElementById("storageInfo"),
   cameraPreview: document.getElementById("cameraPreview"),
 };
@@ -193,13 +195,23 @@ const persistBaseline = async (userId, baseline) => {
 
 const updateDailyPanel = async () => {
   const daily = await fetchDailyActivity(state.activeUserId);
-  els.dailyActivityPanel.innerHTML = `
-    <h3>Daily Game Activity</h3>
-    <p>Date: <strong>${daily.date}</strong></p>
-    <p>Sessions today: <strong>${daily.sessionsToday}</strong></p>
-    <p>Total levels completed today: <strong>${daily.levelsToday}</strong></p>
-    <p>Therapeutic tasks completed today: <strong>${daily.tasksDoneToday}</strong></p>
-  `;
+  if (els.dailySnapshot) {
+    els.dailySnapshot.innerHTML = `
+      <h3>Daily Game Activity</h3>
+      <p>Date: <strong>${daily.date}</strong></p>
+      <p>Sessions today: <strong>${daily.sessionsToday}</strong></p>
+      <p>Total levels completed today: <strong>${daily.levelsToday}</strong></p>
+      <p>Therapeutic tasks completed today: <strong>${daily.tasksDoneToday}</strong></p>
+    `;
+  }
+  if (els.dailyActivityPanel) {
+    els.dailyActivityPanel.innerHTML = `
+      <div class="kpi-item"><span>Sessions</span><strong>${daily.sessionsToday}</strong></div>
+      <div class="kpi-item"><span>Levels</span><strong>${daily.levelsToday}</strong></div>
+      <div class="kpi-item"><span>Tasks</span><strong>${daily.tasksDoneToday}</strong></div>
+    `;
+  }
+  return daily;
 };
 
 const drawTrail = () => {
@@ -476,32 +488,6 @@ const runAssignedTask = (done) => {
   else renderSummary();
 };
 
-const drawAnalyticsChart = (session) => {
-  const canvas = els.analyticsChart;
-  const ctx = canvas.getContext("2d");
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.fillStyle = "#f4faff";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  const barW = 40;
-  const gap = 50;
-  const max = Math.max(...session.levels.map((l) => Math.max(l.timeTakenSec, l.targetTimeSec || 0)), 1);
-
-  session.levels.forEach((l, i) => {
-    const x = 40 + i * (barW + gap);
-    const h1 = (l.timeTakenSec / max) * 200;
-    const h2 = ((l.targetTimeSec || l.timeTakenSec) / max) * 200;
-    ctx.fillStyle = "#4c8bf5";
-    ctx.fillRect(x, 240 - h1, barW, h1);
-    ctx.fillStyle = "#f59e0b";
-    ctx.fillRect(x + barW + 4, 240 - h2, barW, h2);
-    ctx.fillStyle = "#123";
-    ctx.fillText(`L${l.level}`, x + 10, 258);
-  });
-  ctx.fillStyle = "#4c8bf5"; ctx.fillRect(560, 30, 14, 14); ctx.fillStyle = "#123"; ctx.fillText("Actual Time", 580, 42);
-  ctx.fillStyle = "#f59e0b"; ctx.fillRect(560, 52, 14, 14); ctx.fillStyle = "#123"; ctx.fillText("Target Time", 580, 64);
-};
-
 const buildSession = () => {
   const finalLevels = getLatestLevelReports();
   const levelsCompleted = finalLevels.length;
@@ -522,34 +508,111 @@ const buildSession = () => {
   };
 };
 
-
-const drawDailyTrendChart = (userId) => {
-  if (!els.dailyTrendChart) return;
+const drawDailyProgressChart = (userId) => {
+  if (!els.dailyProgressChart) return;
   const sessions = JSON.parse(localStorage.getItem(SESSION_STORAGE_KEY) || "[]")
     .filter((s) => s.userId === userId)
     .slice(0, 14)
     .reverse();
-  const c = els.dailyTrendChart;
+  const c = els.dailyProgressChart;
   const ctx = c.getContext("2d");
   ctx.clearRect(0, 0, c.width, c.height);
   ctx.fillStyle = "#f7fbff";
   ctx.fillRect(0, 0, c.width, c.height);
   if (!sessions.length) return;
-  const max = Math.max(...sessions.map((s) => s.totals?.totalLevelsCompleted || s.levels?.length || 0), 1);
-  const w = 28;
-  const gap = 10;
-  sessions.forEach((sesh, i) => {
-    const val = sesh.totals?.totalLevelsCompleted || sesh.levels?.length || 0;
-    const h = (val / max) * 150;
-    const x = 30 + i * (w + gap);
-    ctx.fillStyle = "#1a74dc";
-    ctx.fillRect(x, 190 - h, w, h);
-    ctx.fillStyle = "#123";
-    const label = (sesh.savedAt || sesh.dateKey || "").slice(5, 10);
-    ctx.fillText(label, x - 2, 210);
-  });
-  ctx.fillStyle = "#123";
-  ctx.fillText("Recent sessions: levels completed", 20, 20);
+
+  const points = sessions.map((s, i) => ({
+    x: 40 + i * ((c.width - 80) / Math.max(1, sessions.length - 1)),
+    levels: s.totals?.totalLevelsCompleted || s.levels?.length || 0,
+    tasks: s.taskStats?.completed || 0,
+    label: (s.savedAt || s.dateKey || "").slice(5, 10)
+  }));
+  const maxVal = Math.max(1, ...points.flatMap((p) => [p.levels, p.tasks]));
+  const scaleY = (v) => 210 - (v / maxVal) * 160;
+
+  const drawLine = (key, color) => {
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    points.forEach((p, i) => {
+      const y = scaleY(p[key]);
+      if (i === 0) ctx.moveTo(p.x, y);
+      else ctx.lineTo(p.x, y);
+    });
+    ctx.stroke();
+    points.forEach((p) => {
+      const y = scaleY(p[key]);
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(p.x, y, 3.5, 0, Math.PI * 2);
+      ctx.fill();
+    });
+  };
+
+  drawLine("tasks", "#16a34a");
+  drawLine("levels", "#2563eb");
+
+  ctx.fillStyle = "#334155";
+  points.forEach((p) => ctx.fillText(p.label, p.x - 10, 230));
+  ctx.fillStyle = "#16a34a"; ctx.fillRect(20, 18, 12, 12); ctx.fillStyle = "#1e293b"; ctx.fillText("Tasks Completed", 38, 28);
+  ctx.fillStyle = "#2563eb"; ctx.fillRect(170, 18, 12, 12); ctx.fillStyle = "#1e293b"; ctx.fillText("Levels Completed", 188, 28);
+};
+
+const improvementBadge = (level, actual, sessions) => {
+  const prevBest = sessions
+    .flatMap((s) => s.levels || [])
+    .filter((l) => l.level === level)
+    .map((l) => l.timeTakenSec)
+    .reduce((m, v) => Math.min(m, v), Infinity);
+  if (!Number.isFinite(prevBest)) return { label: "First", cls: "steady" };
+  if (actual < prevBest - 0.2) return { label: "Improved", cls: "improved" };
+  if (actual > prevBest + 0.2) return { label: "Declined", cls: "declined" };
+  return { label: "Steady", cls: "steady" };
+};
+
+const renderLevelTrendCharts = (userId) => {
+  if (!els.levelTrendGrid) return;
+  const sessions = JSON.parse(localStorage.getItem(SESSION_STORAGE_KEY) || "[]")
+    .filter((s) => s.userId === userId)
+    .slice(0, 20)
+    .reverse();
+
+  els.levelTrendGrid.innerHTML = "";
+  for (let level = 1; level <= 7; level += 1) {
+    const card = document.createElement("div");
+    card.className = "trend-card";
+    card.innerHTML = `<h4>Level ${level} Time Trend</h4><canvas width="280" height="140"></canvas>`;
+    const canvas = card.querySelector("canvas");
+    const ctx = canvas.getContext("2d");
+    const points = sessions.map((s, i) => {
+      const rec = (s.levels || []).find((l) => l.level === level);
+      return rec ? { x: 20 + i * ((canvas.width - 40) / Math.max(1, sessions.length - 1)), y: rec.timeTakenSec } : null;
+    }).filter(Boolean);
+
+    ctx.fillStyle = "#f8fbff";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    if (points.length > 1) {
+      const max = Math.max(...points.map((p) => p.y), 1);
+      const min = Math.min(...points.map((p) => p.y), 0);
+      const mapY = (v) => 120 - ((v - min) / Math.max(1, max - min)) * 90;
+      ctx.strokeStyle = "#f59e0b";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      points.forEach((p, i) => {
+        const py = mapY(p.y);
+        if (i === 0) ctx.moveTo(p.x, py); else ctx.lineTo(p.x, py);
+      });
+      ctx.stroke();
+      points.forEach((p) => {
+        const py = mapY(p.y);
+        ctx.fillStyle = "#f59e0b";
+        ctx.beginPath();
+        ctx.arc(p.x, py, 3, 0, Math.PI * 2);
+        ctx.fill();
+      });
+    }
+    els.levelTrendGrid.appendChild(card);
+  }
 };
 
 const saveBlob = (filename, content, type) => {
@@ -562,22 +625,31 @@ const saveBlob = (filename, content, type) => {
 };
 
 const renderSummary = async () => {
+  const previousSessions = JSON.parse(localStorage.getItem(SESSION_STORAGE_KEY) || "[]")
+    .filter((s) => s.userId === state.activeUserId);
   const session = buildSession();
   await saveSessionRemote(session);
 
-  const rows = session.levels.map((l) => `<tr><td>L${l.level}</td><td>${l.timeTakenSec.toFixed(2)}s</td><td>${(l.targetTimeSec ?? l.timeTakenSec).toFixed(2)}s</td><td>${l.accuracy.toFixed(1)}%</td><td>${l.assignedTask ? "Yes" : "No"}</td><td>${l.taskCompleted === null ? "-" : (l.taskCompleted ? "Done" : "Not done")}</td></tr>`).join("");
+  const rows = session.levels.map((l) => {
+    const badge = improvementBadge(l.level, l.timeTakenSec, previousSessions);
+    return `<tr><td>L${l.level}</td><td>${l.timeTakenSec.toFixed(2)}s <span class="trend-pill ${badge.cls}">${badge.label}</span></td><td>${(l.targetTimeSec ?? l.timeTakenSec).toFixed(2)}s</td><td>${l.accuracy.toFixed(1)}%</td><td>${l.assignedTask ? "Yes" : "No"}</td><td>${l.taskCompleted === null ? "-" : (l.taskCompleted ? "Done" : "Not done")}</td></tr>`;
+  }).join("");
+
+  if (els.dashboardTitle) {
+    els.dashboardTitle.textContent = `Dashboard for ${session.patient.patientName || session.userId}`;
+  }
+
   els.summaryContent.innerHTML = `
-    <p><strong>Patient:</strong> ${session.patient.patientName} (${session.userId})</p>
-    <p><strong>Session Time:</strong> ${session.totals.sessionDurationSec.toFixed(1)}s</p>
-    <p><strong>Levels Completed:</strong> ${session.totals.totalLevelsCompleted}/7</p>
-    <p><strong>Tasks Assigned/Completed:</strong> ${session.taskStats.assigned}/${session.taskStats.completed}</p>
-    <table><thead><tr><th>Level</th><th>Actual</th><th>Target</th><th>Accuracy</th><th>Task</th><th>Feedback</th></tr></thead><tbody>${rows}</tbody></table>
+    <p><strong>Latest Session:</strong> ${new Date(session.savedAt).toLocaleString()}</p>
+    <p><strong>Levels Completed:</strong> ${session.totals.totalLevelsCompleted}/7 &nbsp;|&nbsp; <strong>Tasks Assigned/Completed:</strong> ${session.taskStats.assigned}/${session.taskStats.completed}</p>
+    <table><thead><tr><th>Level</th><th>Actual Time</th><th>Target Time</th><th>Accuracy</th><th>Task Assigned</th><th>Task Completed</th></tr></thead><tbody>${rows}</tbody></table>
   `;
 
-  drawAnalyticsChart(session);
-  drawDailyTrendChart(session.userId);
-  els.storageInfo.innerHTML = `<p>Stored in browser localStorage: <code>${SESSION_STORAGE_KEY}</code>, user profiles: <code>${USER_STORAGE_KEY}</code>, level baselines: <code>${LEVEL_BASELINE_KEY}</code>.</p>`;
   await updateDailyPanel();
+  drawDailyProgressChart(session.userId);
+  renderLevelTrendCharts(session.userId);
+
+  els.storageInfo.innerHTML = `<p>Stored in browser localStorage/API. Keys: <code>${SESSION_STORAGE_KEY}</code>, <code>${USER_STORAGE_KEY}</code>, <code>${LEVEL_BASELINE_KEY}</code>.</p>`;
   showScene("summaryScene");
 };
 

@@ -32,7 +32,7 @@
         <button id="logoutBtn" class="danger">Logout</button>
       </div>
       <p class="muted">Welcome, <strong id="activePatientLabel">-</strong></p>
-      <div id="dailyActivityPanel" class="storage-box"></div>
+      <div id="dailySnapshot" class="storage-box"></div>
       <div class="actions">
         <button id="startBtn" class="primary">Start Session</button>
         <button id="settingsBtn">Settings</button>
@@ -133,16 +133,37 @@
       <p id="taskGateMessage" class="hint">Complete the full timer to unlock feedback buttons.</p>
     </section>
 
-    <section id="summaryScene" class="scene card summary-card">
-      <h2>Session Analytics Summary</h2>
-      <div id="summaryContent"></div>
-      <canvas id="analyticsChart" width="760" height="280"></canvas>
-      <canvas id="dailyTrendChart" width="760" height="240"></canvas>
+    <section id="summaryScene" class="scene card summary-card dashboard-scene">
+      <div class="top-row">
+        <h2 id="dashboardTitle">Dashboard for -</h2>
+      </div>
+
+      <div class="dashboard-grid two-col">
+        <section class="storage-box">
+          <h3>Daily Activity Summary</h3>
+          <div id="dailyActivityPanel" class="kpi-grid"></div>
+        </section>
+        <section class="storage-box">
+          <h3>Daily Tasks &amp; Levels Progress</h3>
+          <canvas id="dailyProgressChart" width="760" height="250"></canvas>
+        </section>
+      </div>
+
+      <section class="storage-box">
+        <h3>Latest Session Summary</h3>
+        <div id="summaryContent"></div>
+      </section>
+
+      <section class="storage-box">
+        <h3>Level Time Trends</h3>
+        <div id="levelTrendGrid" class="dashboard-grid trend-grid"></div>
+      </section>
+
       <div id="storageInfo" class="storage-box"></div>
       <div class="actions">
-        <button id="downloadJsonBtn">Download JSON</button>
-        <button id="downloadCsvBtn">Download CSV</button>
-        <button id="restartBtn" class="primary">Return to Start</button>
+        <button id="downloadJsonBtn">Export JSON</button>
+        <button id="downloadCsvBtn">Export CSV</button>
+        <button id="restartBtn" class="primary">Back to Game</button>
       </div>
     </section>
   </main>
