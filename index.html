@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <main id="app">
+  <main id="app" class="arcade-shell">
     <section id="authScene" class="scene active card auth-card">
       <h1>🎈 Wrist Rehabilitation Therapy</h1>
       <p class="muted">Patient Login</p>
@@ -26,16 +26,25 @@
       <p id="authMessage" class="hint"></p>
     </section>
 
-    <section id="startScene" class="scene card">
+    <section id="startScene" class="scene card arcade-home">
       <div class="top-row">
-        <h2>Wrist Rehabilitation Therapy (Web)</h2>
+        <h2>🎮 Rehab Arcade Hub</h2>
         <button id="logoutBtn" class="danger">Logout</button>
       </div>
-      <p class="muted">Welcome, <strong id="activePatientLabel">-</strong></p>
+      <p class="muted">Dashboard for <strong id="activePatientLabel">-</strong></p>
+      <div class="arcade-tags">
+        <span>Arcade</span><span>Therapy</span><span>Daily Challenge</span>
+      </div>
       <div id="dailySnapshot" class="storage-box"></div>
-      <div class="actions">
-        <button id="startBtn" class="primary">Start Session</button>
-        <button id="settingsBtn">Settings</button>
+      <div class="game-tile">
+        <div>
+          <h3>🎈 Wrist Balloon Challenge</h3>
+          <p class="hint">Pop balloons, complete therapeutic tasks, and track improvement trends.</p>
+        </div>
+        <div class="actions">
+          <button id="startBtn" class="primary">Play Now</button>
+          <button id="settingsBtn">Game Settings</button>
+        </div>
       </div>
     </section>
 
