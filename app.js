@@ -223,8 +223,11 @@ const pollJoystick = () => {
     return;
   }
   const [axX = 0, axY = 0] = gp.axes;
-  state.cursor.x = clamp(state.cursor.x + axX * 8, 0, els.playArea.clientWidth);
-  state.cursor.y = clamp(state.cursor.y + axY * 8, 0, els.playArea.clientHeight);
+  const rect = els.playArea.getBoundingClientRect();
+  const width = Math.max(0, rect.width || els.playArea.clientWidth);
+  const height = Math.max(0, rect.height || els.playArea.clientHeight);
+  state.cursor.x = clamp(state.cursor.x + axX * 8, 0, width);
+  state.cursor.y = clamp(state.cursor.y + axY * 8, 0, height);
   els.inputStatus.textContent = `Joystick active: ${gp.id}`;
 };
 
@@ -293,10 +296,13 @@ const spawnBalloon = () => {
   const scale = cfg.enableShrink ? cfg.shrinkFactor : 1;
   const radiusX = 36;
   const radiusY = 44;
+  const rect = els.playArea.getBoundingClientRect();
+  const width = Math.max(radiusX * 2 + 10, rect.width || els.playArea.clientWidth || 0);
+  const height = Math.max(radiusY * 2 + 10, rect.height || els.playArea.clientHeight || 0);
   const b = {
     node,
-    x: rand(radiusX, els.playArea.clientWidth - radiusX),
-    y: rand(radiusY, els.playArea.clientHeight - radiusY),
+    x: rand(radiusX, width - radiusX),
+    y: rand(radiusY, height - radiusY),
     vx: rand(-1, 1) * cfg.speed,
     vy: rand(-1, 1) * cfg.speed,
     scale,
@@ -425,8 +431,10 @@ const startLevel = (idx) => {
   requestAnimationFrame(() => {
     const rect = els.playArea.getBoundingClientRect();
     if (rect.width > 0 && rect.height > 0) {
-      state.cursor.x = clamp(state.cursor.x || rect.width / 2, 0, rect.width);
-      state.cursor.y = clamp(state.cursor.y || rect.height / 2, 0, rect.height);
+      const nextX = Number.isFinite(state.cursor.x) ? state.cursor.x : rect.width / 2;
+      const nextY = Number.isFinite(state.cursor.y) ? state.cursor.y : rect.height / 2;
+      state.cursor.x = clamp(nextX, 0, rect.width);
+      state.cursor.y = clamp(nextY, 0, rect.height);
     }
     for (let i = 0; i < cfg.balloonCount; i += 1) spawnBalloon();
     updateHUD();
