@@ -8,7 +8,41 @@
 </head>
 <body>
   <main id="app" class="arcade-shell">
-    <section id="authScene" class="scene active card auth-card">
+    <section id="portalScene" class="scene active portal-scene">
+      <aside class="portal-sidebar">
+        <div class="brand">🎮 Rehab Arcade</div>
+        <nav>
+          <button class="portal-nav active">New Games</button>
+          <button class="portal-nav">Trending Now</button>
+          <button class="portal-nav">Popular Games</button>
+          <hr />
+          <button class="portal-nav">Driving</button>
+          <button class="portal-nav">Shooting</button>
+          <button class="portal-nav">Sports</button>
+          <button class="portal-nav">Arcade &amp; Classic</button>
+        </nav>
+      </aside>
+      <div class="portal-main">
+        <header class="portal-topbar">
+          <input class="portal-search" placeholder="Search our 100,000 Games" />
+          <div class="actions">
+            <button id="portalLoginBtn">Log in</button>
+            <button id="portalRegisterBtn" class="primary">Register</button>
+          </div>
+        </header>
+        <div class="portal-grid">
+          <div class="portal-feature">Driving</div>
+          <div class="portal-card"></div><div class="portal-card"></div><div class="portal-card"></div>
+          <div class="portal-feature">Shooting</div>
+          <div class="portal-card"></div><div class="portal-card"></div><div class="portal-card"></div>
+          <div class="portal-feature">For Girls</div>
+          <div class="portal-card"></div><div class="portal-card"></div><div class="portal-card"></div>
+        </div>
+        <p class="hint">Portal style home inspired by arcade catalogs. Use Log in/Register to access therapy gameplay.</p>
+      </div>
+    </section>
+
+    <section id="authScene" class="scene card auth-card">
       <h1>🎈 Wrist Rehabilitation Therapy</h1>
       <p class="muted">Patient Login</p>
       <label>
@@ -146,6 +180,11 @@
       <div class="top-row">
         <h2 id="dashboardTitle">Dashboard for -</h2>
       </div>
+
+      <section class="storage-box dash-panel" id="profilePanel">
+        <h3>Profile</h3>
+        <p id="profileSummary">-</p>
+      </section>
 
       <div class="dashboard-grid two-col">
         <section class="storage-box dash-panel">

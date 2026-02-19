@@ -40,6 +40,8 @@ const state = {
 
 const els = {
   appVersion: document.getElementById("appVersion"),
+  portalLoginBtn: document.getElementById("portalLoginBtn"),
+  portalRegisterBtn: document.getElementById("portalRegisterBtn"),
   loginPatientId: document.getElementById("loginPatientId"),
   loginPassword: document.getElementById("loginPassword"),
   openRegisterBtn: document.getElementById("openRegisterBtn"),
@@ -75,6 +77,7 @@ const els = {
   startTaskBtn: document.getElementById("startTaskBtn"),
   taskGateMessage: document.getElementById("taskGateMessage"),
   dashboardTitle: document.getElementById("dashboardTitle"),
+  profileSummary: document.getElementById("profileSummary"),
   summaryContent: document.getElementById("summaryContent"),
   dailyProgressChart: document.getElementById("dailyProgressChart"),
   levelTrendGrid: document.getElementById("levelTrendGrid"),
@@ -639,6 +642,10 @@ const renderSummary = async () => {
   if (els.dashboardTitle) {
     els.dashboardTitle.textContent = `Dashboard for ${session.patient.patientName || session.userId}`;
   }
+  if (els.profileSummary) {
+    const p = session.patient || {};
+    els.profileSummary.textContent = `Name: ${p.patientName || "-"} | Age: ${p.age || "-"} | Gender: ${p.gender || "-"} | Affected Hand: ${p.affectedHand || "-"}`;
+  }
 
   els.summaryContent.innerHTML = `
     <p><strong>Latest Session:</strong> ${new Date(session.savedAt).toLocaleString()}</p>
@@ -655,6 +662,8 @@ const renderSummary = async () => {
 };
 
 const attachEvents = () => {
+  if (els.portalLoginBtn) els.portalLoginBtn.addEventListener("click", () => showScene("authScene"));
+  if (els.portalRegisterBtn) els.portalRegisterBtn.addEventListener("click", () => showScene("patientScene"));
   els.openRegisterBtn.addEventListener("click", () => showScene("patientScene"));
 
   document.getElementById("loginBtn").addEventListener("click", async () => {
@@ -674,7 +683,7 @@ const attachEvents = () => {
   document.getElementById("logoutBtn").addEventListener("click", () => {
     stopCameraTracking();
     state.activeUserId = null;
-    showScene("authScene");
+    showScene("portalScene");
   });
 
   document.getElementById("settingsBtn").addEventListener("click", () => showScene("settingsScene"));
@@ -798,7 +807,7 @@ const init = () => {
     });
   }
   attachEvents();
-  showScene("authScene");
+  showScene("portalScene");
 };
 
 window.addEventListener("beforeunload", () => stopCameraTracking());
