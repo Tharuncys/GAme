@@ -9,11 +9,32 @@
 <body>
   <main id="app" class="arcade-shell">
     <section id="hubScene" class="scene active app-hub">
-      <aside class="hub-sidebar card">
-        <h2>Rehab App</h2>
-        <button id="navProfileBtn">Profile</button>
-        <button id="navDashboardBtn">Dashboard</button>
-        <button id="navGameBtn">Game</button>
+      <aside class="hub-sidebar card y8-sidebar">
+        <div class="sidebar-top">
+          <span class="hamburger">☰</span>
+          <h2>Y8 Rehab</h2>
+        </div>
+        <div class="sidebar-meta">
+          <p><strong>Free Online</strong><br/>Games</p>
+        </div>
+
+        <nav class="primary-nav">
+          <button id="navProfileBtn" class="nav-pill active">👤 Profile</button>
+          <button id="navDashboardBtn" class="nav-pill">📊 Dashboard</button>
+          <button id="navGameBtn" class="nav-pill">🎮 Game</button>
+        </nav>
+
+        <hr />
+
+        <nav class="category-nav">
+          <button class="cat-item">🚗 Driving</button>
+          <button class="cat-item">🎯 Shooting</button>
+          <button class="cat-item">⚽ Sports</button>
+          <button class="cat-item">🧠 Thinking</button>
+          <button class="cat-item">🎉 Fun &amp; Crazy</button>
+          <button class="cat-item">⚔️ Action &amp; Fighting</button>
+        </nav>
+
         <button id="hubLogoutBtn" class="danger">Logout</button>
       </aside>
       <div class="hub-main card" id="hubMain">
