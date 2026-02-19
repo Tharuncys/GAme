@@ -14,8 +14,18 @@ db.serialize(() => {
   db.run(`CREATE TABLE IF NOT EXISTS users (
     patient_id TEXT PRIMARY KEY,
     password TEXT NOT NULL,
+    profile_json TEXT,
     created_at TEXT NOT NULL
   )`);
+
+  db.run('PRAGMA table_info(users)', (err) => {
+    if (err) return;
+    db.all('PRAGMA table_info(users)', (e, rows) => {
+      if (e) return;
+      const hasProfile = rows.some((r) => r.name === 'profile_json');
+      if (!hasProfile) db.run('ALTER TABLE users ADD COLUMN profile_json TEXT');
+    });
+  });
 
   db.run(`CREATE TABLE IF NOT EXISTS baselines (
     patient_id TEXT PRIMARY KEY,
@@ -33,14 +43,14 @@ db.serialize(() => {
 });
 
 app.post('/api/register', (req, res) => {
-  const { patientId, password } = req.body || {};
+  const { patientId, password, profile } = req.body || {};
   if (!patientId || !password) return res.status(400).json({ ok: false, message: 'Missing fields' });
 
   db.get('SELECT patient_id FROM users WHERE patient_id = ?', [patientId], (err, row) => {
     if (err) return res.status(500).json({ ok: false, message: 'DB error' });
     if (row) return res.json({ ok: false, message: 'User exists. Please login.' });
 
-    db.run('INSERT INTO users(patient_id, password, created_at) VALUES(?,?,?)', [patientId, password, new Date().toISOString()], (insErr) => {
+    db.run('INSERT INTO users(patient_id, password, profile_json, created_at) VALUES(?,?,?,?)', [patientId, password, JSON.stringify(profile || null), new Date().toISOString()], (insErr) => {
       if (insErr) return res.status(500).json({ ok: false, message: 'Unable to register' });
       res.json({ ok: true, message: 'Registered. Now login.' });
     });
@@ -51,10 +61,23 @@ app.post('/api/login', (req, res) => {
   const { patientId, password } = req.body || {};
   if (!patientId || !password) return res.status(400).json({ ok: false, message: 'Missing fields' });
 
-  db.get('SELECT password FROM users WHERE patient_id = ?', [patientId], (err, row) => {
+  db.get('SELECT password, profile_json FROM users WHERE patient_id = ?', [patientId], (err, row) => {
     if (err) return res.status(500).json({ ok: false, message: 'DB error' });
     if (!row || row.password !== password) return res.json({ ok: false, message: 'Invalid credentials.' });
-    res.json({ ok: true });
+    let profile = null;
+    try { profile = row.profile_json ? JSON.parse(row.profile_json) : null; } catch {}
+    res.json({ ok: true, profile });
+  });
+});
+
+app.get('/api/profile', (req, res) => {
+  const userId = req.query.userId;
+  if (!userId) return res.status(400).json({ ok: false });
+  db.get('SELECT profile_json FROM users WHERE patient_id = ?', [userId], (err, row) => {
+    if (err) return res.status(500).json({ ok: false });
+    let profile = null;
+    try { profile = row?.profile_json ? JSON.parse(row.profile_json) : null; } catch {}
+    res.json({ ok: true, profile });
   });
 });
 

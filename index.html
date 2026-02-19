@@ -19,6 +19,38 @@
         Password
         <input id="loginPassword" type="password" placeholder="Password" required />
       </label>
+      <h3>Register Profile (required for new user)</h3>
+      <label>
+        Patient Name
+        <input id="registerPatientName" placeholder="Full name" />
+      </label>
+      <label>
+        Age
+        <input id="registerAge" type="number" min="1" max="120" placeholder="e.g. 58" />
+      </label>
+      <label>
+        Gender
+        <select id="registerGender">
+          <option value="Male">Male</option>
+          <option value="Female">Female</option>
+          <option value="Other">Other</option>
+        </select>
+      </label>
+      <label>
+        Affected Hand
+        <select id="registerHand">
+          <option value="Left">Left</option>
+          <option value="Right">Right</option>
+        </select>
+      </label>
+      <label>
+        Time Since Stroke
+        <select id="registerStrokeTime">
+          <option value="< 3 months">&lt; 3 months</option>
+          <option value="3–6 months">3–6 months</option>
+          <option value="> 6 months">&gt; 6 months</option>
+        </select>
+      </label>
       <div class="actions">
         <button id="loginBtn" class="primary">Login</button>
         <button id="registerBtn">Register</button>

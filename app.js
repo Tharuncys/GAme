@@ -41,6 +41,11 @@ const els = {
   appVersion: document.getElementById("appVersion"),
   loginPatientId: document.getElementById("loginPatientId"),
   loginPassword: document.getElementById("loginPassword"),
+  registerPatientName: document.getElementById("registerPatientName"),
+  registerAge: document.getElementById("registerAge"),
+  registerGender: document.getElementById("registerGender"),
+  registerHand: document.getElementById("registerHand"),
+  registerStrokeTime: document.getElementById("registerStrokeTime"),
   authMessage: document.getElementById("authMessage"),
   activePatientLabel: document.getElementById("activePatientLabel"),
   dailyActivityPanel: document.getElementById("dailyActivityPanel"),
@@ -101,12 +106,18 @@ const apiRequest = async (path, method = "GET", body) => {
   }
 };
 
-const registerUser = async (patientId, password) => {
-  const remote = await apiRequest("/api/register", "POST", { patientId, password });
+const registerUser = async (payload) => {
+  const remote = await apiRequest("/api/register", "POST", payload);
   if (remote) return remote;
+
+  const { patientId, password, profile } = payload;
   const users = getUsers();
   if (users[patientId]) return { ok: false, message: "User exists. Please login." };
-  users[patientId] = { password, createdAt: new Date().toISOString() };
+  users[patientId] = {
+    password,
+    profile,
+    createdAt: new Date().toISOString()
+  };
   saveUsers(users);
   return { ok: true, message: "Registered. Now login." };
 };
@@ -116,7 +127,14 @@ const loginUser = async (patientId, password) => {
   if (remote) return remote;
   const users = getUsers();
   if (!users[patientId] || users[patientId].password !== password) return { ok: false, message: "Invalid credentials." };
-  return { ok: true };
+  return { ok: true, profile: users[patientId].profile || null };
+};
+
+const getUserProfile = async (userId) => {
+  const remote = await apiRequest(`/api/profile?userId=${encodeURIComponent(userId)}`);
+  if (remote?.ok) return remote.profile || null;
+  const users = getUsers();
+  return users[userId]?.profile || null;
 };
 
 const saveSessionRemote = async (session) => {
@@ -493,7 +511,18 @@ const attachEvents = () => {
     const id = els.loginPatientId.value.trim();
     const pw = els.loginPassword.value;
     if (!id || !pw) return (els.authMessage.textContent = "Enter patient ID and password.");
-    const result = await registerUser(id, pw);
+    const profile = {
+      patientName: els.registerPatientName.value.trim(),
+      age: Number(els.registerAge.value || 0),
+      gender: els.registerGender.value,
+      affectedHand: els.registerHand.value,
+      timeSinceStroke: els.registerStrokeTime.value,
+    };
+    if (!profile.patientName || !profile.age) {
+      els.authMessage.textContent = "For registration, fill Patient Name and Age.";
+      return;
+    }
+    const result = await registerUser({ patientId: id, password: pw, profile });
     els.authMessage.textContent = result.message || (result.ok ? "Registered. Now login." : "Registration failed.");
   });
 
@@ -503,6 +532,8 @@ const attachEvents = () => {
     const result = await loginUser(id, pw);
     if (!result.ok) return (els.authMessage.textContent = result.message || "Invalid credentials.");
     state.activeUserId = id;
+    const userProfile = result.profile || await getUserProfile(id);
+    state.patient = userProfile ? { ...userProfile, userId: id } : null;
     state.baselineTimes = await fetchBaseline(id);
     els.activePatientLabel.textContent = id;
     await updateDailyPanel();
@@ -516,7 +547,16 @@ const attachEvents = () => {
   });
 
   document.getElementById("settingsBtn").addEventListener("click", () => showScene("settingsScene"));
-  document.getElementById("startBtn").addEventListener("click", () => showScene("patientScene"));
+  document.getElementById("startBtn").addEventListener("click", () => {
+    if (state.patient?.patientName) {
+      state.levelReports = [];
+      state.totalPops = 0;
+      state.sessionStartTs = Date.now();
+      startLevel(0);
+    } else {
+      showScene("patientScene");
+    }
+  });
   document.querySelectorAll("[data-back]").forEach((btn) => btn.addEventListener("click", () => showScene(btn.dataset.back)));
 
   document.getElementById("saveSettingsBtn").addEventListener("click", async () => {
