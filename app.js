@@ -219,7 +219,7 @@ const setCursorByPoint = (x, y) => {
 const pollJoystick = () => {
   const gp = navigator.getGamepads?.()[0];
   if (!gp) {
-    els.inputStatus.textContent = "No joystick detected.";
+    els.inputStatus.textContent = "No joystick detected. Using mouse fallback.";
     return;
   }
   const [axX = 0, axY = 0] = gp.axes;
@@ -291,10 +291,12 @@ const spawnBalloon = () => {
   const cfg = currentLevel();
   const node = document.getElementById("balloonTemplate").content.firstElementChild.cloneNode(true);
   const scale = cfg.enableShrink ? cfg.shrinkFactor : 1;
+  const radiusX = 36;
+  const radiusY = 44;
   const b = {
     node,
-    x: rand(40, els.playArea.clientWidth - 40),
-    y: rand(60, els.playArea.clientHeight - 40),
+    x: rand(radiusX, els.playArea.clientWidth - radiusX),
+    y: rand(radiusY, els.playArea.clientHeight - radiusY),
     vx: rand(-1, 1) * cfg.speed,
     vy: rand(-1, 1) * cfg.speed,
     scale,
@@ -378,9 +380,11 @@ const finishLevel = async () => {
 
 const updateBalloons = () => {
   state.balloons.forEach((b) => {
+    const radiusX = 36 * b.scale;
+    const radiusY = 44 * b.scale;
     b.x += b.vx; b.y += b.vy;
-    if (b.x < 20 || b.x > els.playArea.clientWidth - 20) b.vx *= -1;
-    if (b.y < 35 || b.y > els.playArea.clientHeight - 20) b.vy *= -1;
+    if (b.x < radiusX || b.x > els.playArea.clientWidth - radiusX) b.vx *= -1;
+    if (b.y < radiusY || b.y > els.playArea.clientHeight - radiusY) b.vy *= -1;
     const d = Math.hypot(b.x - state.cursor.x, b.y - state.cursor.y);
     if (d < 24 * b.scale) popBalloon(b);
     b.node.style.left = `${b.x}px`;
@@ -416,10 +420,18 @@ const startLevel = (idx) => {
   state.levelRuntime.levelRunning = true;
   state.levelStartTs = Date.now();
   state.levelStartPerf = performance.now();
-  for (let i = 0; i < cfg.balloonCount; i += 1) spawnBalloon();
-  updateHUD();
   showScene("levelScene");
-  state.rafId = requestAnimationFrame(loop);
+
+  requestAnimationFrame(() => {
+    const rect = els.playArea.getBoundingClientRect();
+    if (rect.width > 0 && rect.height > 0) {
+      state.cursor.x = clamp(state.cursor.x || rect.width / 2, 0, rect.width);
+      state.cursor.y = clamp(state.cursor.y || rect.height / 2, 0, rect.height);
+    }
+    for (let i = 0; i < cfg.balloonCount; i += 1) spawnBalloon();
+    updateHUD();
+    state.rafId = requestAnimationFrame(loop);
+  });
 };
 
 const runAssignedTask = (done) => {
@@ -572,7 +584,7 @@ const attachEvents = () => {
   });
 
   els.playArea.addEventListener("pointermove", (e) => {
-    if (state.settings.controlMode === "mouse") setCursorByPoint(e.clientX, e.clientY);
+    if (state.settings.controlMode !== "camera") setCursorByPoint(e.clientX, e.clientY);
   });
 
   els.playArea.addEventListener("click", (e) => {
