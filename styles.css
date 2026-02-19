@@ -178,7 +178,7 @@ button.link-btn:hover {
   overflow: hidden;
 }
 
-.balloon { position: absolute; font-size: 3rem; border: 0; background: transparent; transform-origin: center; }
+.balloon { position: absolute; font-size: 4.4rem; border: 0; background: transparent; transform-origin: center; }
 .pop { animation: pop 0.22s ease-out forwards; }
 @keyframes pop { from { transform: scale(1); opacity: 1; } to { transform: scale(1.65); opacity: 0; } }
 
@@ -230,3 +230,11 @@ button.link-btn:hover {
   .play-area { height: 64vh; }
   .form-grid { grid-template-columns: 1fr; }
 }
+
+
+#dailyTrendChart { width:100%; background:#fff; border:1px solid #d8e8f7; border-radius:10px; margin-top:.8rem; }
+
+
+table { width:100%; border-collapse: collapse; margin-top: .8rem; font-size: .9rem; }
+th, td { border-bottom: 1px solid #e4edf6; text-align:left; padding:.45rem; }
+button:disabled { opacity:.55; cursor:not-allowed; transform:none; }

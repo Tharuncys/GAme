@@ -50,6 +50,15 @@
         </select>
       </label>
       <p class="hint">Unique sign for cursor movement: hold your hand at top-left camera zone for 1 second.</p>
+      <label>
+        Balloon Speed
+        <input id="speedMultiplier" type="range" min="0.3" max="1.8" step="0.1" value="0.6" />
+        <span id="speedMultiplierValue" class="hint">0.6x</span>
+      </label>
+      <label>
+        <input id="adaptiveSpeedToggle" type="checkbox" checked />
+        Auto-increase speed based on performance
+      </label>
       <p id="inputStatus" class="hint"></p>
       <div class="actions">
         <button id="saveSettingsBtn" class="primary">Save Settings</button>
@@ -118,15 +127,17 @@
       <p>Task Timer: <strong id="taskTimer">30</strong>s</p>
       <div class="actions">
         <button id="startTaskBtn" class="primary">Start Task</button>
-        <button id="taskDoneBtn">I Completed Task</button>
-        <button id="taskNotDoneBtn" class="danger">Not Completed</button>
+        <button id="taskDoneBtn" disabled>I Completed Task</button>
+        <button id="taskNotDoneBtn" class="danger" disabled>Not Completed</button>
       </div>
+      <p id="taskGateMessage" class="hint">Complete the full timer to unlock feedback buttons.</p>
     </section>
 
     <section id="summaryScene" class="scene card summary-card">
       <h2>Session Analytics Summary</h2>
       <div id="summaryContent"></div>
       <canvas id="analyticsChart" width="760" height="280"></canvas>
+      <canvas id="dailyTrendChart" width="760" height="240"></canvas>
       <div id="storageInfo" class="storage-box"></div>
       <div class="actions">
         <button id="downloadJsonBtn">Download JSON</button>

@@ -17,7 +17,7 @@ const LEVELS = [
 const state = {
   scene: "authScene",
   activeUserId: null,
-  settings: { controlMode: "camera" },
+  settings: { controlMode: "camera", speedMultiplier: 0.6, adaptiveSpeed: true },
   patient: null,
   sessionStartTs: null,
   levelIndex: 0,
@@ -34,6 +34,7 @@ const state = {
   currentTask: null,
   taskTimer: 30,
   taskInterval: null,
+  adaptiveSpeedBoost: 0,
   cameraGesture: { unlocked: false, holdStart: 0 }
 };
 
@@ -48,6 +49,9 @@ const els = {
   activePatientLabel: document.getElementById("activePatientLabel"),
   dailyActivityPanel: document.getElementById("dailyActivityPanel"),
   controlModeSelect: document.getElementById("controlModeSelect"),
+  speedMultiplier: document.getElementById("speedMultiplier"),
+  speedMultiplierValue: document.getElementById("speedMultiplierValue"),
+  adaptiveSpeedToggle: document.getElementById("adaptiveSpeedToggle"),
   inputStatus: document.getElementById("inputStatus"),
   levelName: document.getElementById("levelName"),
   popCounter: document.getElementById("popCounter"),
@@ -65,8 +69,13 @@ const els = {
   taskTriggerInfo: document.getElementById("taskTriggerInfo"),
   taskText: document.getElementById("taskText"),
   taskTimer: document.getElementById("taskTimer"),
+  taskDoneBtn: document.getElementById("taskDoneBtn"),
+  taskNotDoneBtn: document.getElementById("taskNotDoneBtn"),
+  startTaskBtn: document.getElementById("startTaskBtn"),
+  taskGateMessage: document.getElementById("taskGateMessage"),
   summaryContent: document.getElementById("summaryContent"),
   analyticsChart: document.getElementById("analyticsChart"),
+  dailyTrendChart: document.getElementById("dailyTrendChart"),
   storageInfo: document.getElementById("storageInfo"),
   cameraPreview: document.getElementById("cameraPreview"),
 };
@@ -83,6 +92,16 @@ const showScene = (id) => {
   state.scene = id;
 };
 const currentLevel = () => LEVELS[state.levelIndex];
+const getLatestLevelReports = () => {
+  const latest = new Map();
+  state.levelReports.forEach((report) => latest.set(report.level, report));
+  return [...latest.values()].sort((a, b) => a.level - b.level);
+};
+const effectiveSpeed = (baseSpeed) => {
+  const manual = Number(state.settings.speedMultiplier || 0.6);
+  const adaptive = state.settings.adaptiveSpeed ? (1 + state.adaptiveSpeedBoost) : 1;
+  return baseSpeed * manual * adaptive;
+};
 
 const getUsers = () => JSON.parse(localStorage.getItem(USER_STORAGE_KEY) || "{}");
 const saveUsers = (users) => localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(users));
@@ -152,8 +171,8 @@ const fetchDailyActivity = async (userId) => {
     ok: true,
     date: todayKey(),
     sessionsToday: today.length,
-    levelsToday: today.reduce((a, s) => a + s.totals.totalLevelsCompleted, 0),
-    tasksDoneToday: today.reduce((a, s) => a + s.taskStats.completed, 0),
+    levelsToday: today.reduce((a, s) => a + (s.levels?.length || s.totals?.totalLevelsCompleted || 0), 0),
+    tasksDoneToday: today.reduce((a, s) => a + (s.taskStats?.completed || 0), 0),
   };
 };
 
@@ -292,6 +311,7 @@ const stopCameraTracking = () => {
 
 const spawnBalloon = () => {
   const cfg = currentLevel();
+  const speed = effectiveSpeed(cfg.speed);
   const node = document.getElementById("balloonTemplate").content.firstElementChild.cloneNode(true);
   const scale = cfg.enableShrink ? cfg.shrinkFactor : 1;
   const radiusX = 36;
@@ -303,8 +323,8 @@ const spawnBalloon = () => {
     node,
     x: rand(radiusX, width - radiusX),
     y: rand(radiusY, height - radiusY),
-    vx: rand(-1, 1) * cfg.speed,
-    vy: rand(-1, 1) * cfg.speed,
+    vx: rand(-1, 1) * speed,
+    vy: rand(-1, 1) * speed,
     scale,
   };
   node.style.left = `${b.x}px`;
@@ -338,20 +358,23 @@ const resetLevelRuntime = () => {
 };
 
 const maybeAssignTask = async (levelId, timeTaken) => {
-  const target = state.baselineTimes[levelId];
-  if (!target) {
-    state.baselineTimes[levelId] = timeTaken;
-    await persistBaseline(state.activeUserId, state.baselineTimes);
-    return null;
-  }
-  if (timeTaken <= target) return null;
-  return {
+  const target = state.baselineTimes[levelId] || null;
+  const task = target && timeTaken > target ? {
     levelId,
     target,
     actual: timeTaken,
     timer: 30,
     text: `You exceeded target time (${target.toFixed(1)}s). Please perform wrist hold-and-release activity for 30 seconds.`
-  };
+  } : null;
+
+  state.baselineTimes[levelId] = timeTaken;
+  await persistBaseline(state.activeUserId, state.baselineTimes);
+
+  if (state.settings.adaptiveSpeed) {
+    if (!task) state.adaptiveSpeedBoost = Math.min(0.9, state.adaptiveSpeedBoost + 0.05);
+    else state.adaptiveSpeedBoost = Math.max(0, state.adaptiveSpeedBoost - 0.03);
+  }
+  return task;
 };
 
 const finishLevel = async () => {
@@ -480,9 +503,10 @@ const drawAnalyticsChart = (session) => {
 };
 
 const buildSession = () => {
-  const levelsCompleted = state.levelReports.length;
-  const tasksAssigned = state.levelReports.filter((l) => l.assignedTask).length;
-  const tasksCompleted = state.levelReports.filter((l) => l.taskCompleted).length;
+  const finalLevels = getLatestLevelReports();
+  const levelsCompleted = finalLevels.length;
+  const tasksAssigned = finalLevels.filter((l) => l.assignedTask).length;
+  const tasksCompleted = finalLevels.filter((l) => l.taskCompleted).length;
   return {
     userId: state.activeUserId,
     dateKey: todayKey(),
@@ -493,9 +517,39 @@ const buildSession = () => {
       sessionDurationSec: (Date.now() - state.sessionStartTs) / 1000,
     },
     taskStats: { assigned: tasksAssigned, completed: tasksCompleted },
-    levels: state.levelReports,
+    levels: finalLevels,
     savedAt: new Date().toISOString(),
   };
+};
+
+
+const drawDailyTrendChart = (userId) => {
+  if (!els.dailyTrendChart) return;
+  const sessions = JSON.parse(localStorage.getItem(SESSION_STORAGE_KEY) || "[]")
+    .filter((s) => s.userId === userId)
+    .slice(0, 14)
+    .reverse();
+  const c = els.dailyTrendChart;
+  const ctx = c.getContext("2d");
+  ctx.clearRect(0, 0, c.width, c.height);
+  ctx.fillStyle = "#f7fbff";
+  ctx.fillRect(0, 0, c.width, c.height);
+  if (!sessions.length) return;
+  const max = Math.max(...sessions.map((s) => s.totals?.totalLevelsCompleted || s.levels?.length || 0), 1);
+  const w = 28;
+  const gap = 10;
+  sessions.forEach((sesh, i) => {
+    const val = sesh.totals?.totalLevelsCompleted || sesh.levels?.length || 0;
+    const h = (val / max) * 150;
+    const x = 30 + i * (w + gap);
+    ctx.fillStyle = "#1a74dc";
+    ctx.fillRect(x, 190 - h, w, h);
+    ctx.fillStyle = "#123";
+    const label = (sesh.savedAt || sesh.dateKey || "").slice(5, 10);
+    ctx.fillText(label, x - 2, 210);
+  });
+  ctx.fillStyle = "#123";
+  ctx.fillText("Recent sessions: levels completed", 20, 20);
 };
 
 const saveBlob = (filename, content, type) => {
@@ -511,14 +565,17 @@ const renderSummary = async () => {
   const session = buildSession();
   await saveSessionRemote(session);
 
+  const rows = session.levels.map((l) => `<tr><td>L${l.level}</td><td>${l.timeTakenSec.toFixed(2)}s</td><td>${(l.targetTimeSec ?? l.timeTakenSec).toFixed(2)}s</td><td>${l.accuracy.toFixed(1)}%</td><td>${l.assignedTask ? "Yes" : "No"}</td><td>${l.taskCompleted === null ? "-" : (l.taskCompleted ? "Done" : "Not done")}</td></tr>`).join("");
   els.summaryContent.innerHTML = `
     <p><strong>Patient:</strong> ${session.patient.patientName} (${session.userId})</p>
     <p><strong>Session Time:</strong> ${session.totals.sessionDurationSec.toFixed(1)}s</p>
     <p><strong>Levels Completed:</strong> ${session.totals.totalLevelsCompleted}/7</p>
     <p><strong>Tasks Assigned/Completed:</strong> ${session.taskStats.assigned}/${session.taskStats.completed}</p>
+    <table><thead><tr><th>Level</th><th>Actual</th><th>Target</th><th>Accuracy</th><th>Task</th><th>Feedback</th></tr></thead><tbody>${rows}</tbody></table>
   `;
 
   drawAnalyticsChart(session);
+  drawDailyTrendChart(session.userId);
   els.storageInfo.innerHTML = `<p>Stored in browser localStorage: <code>${SESSION_STORAGE_KEY}</code>, user profiles: <code>${USER_STORAGE_KEY}</code>, level baselines: <code>${LEVEL_BASELINE_KEY}</code>.</p>`;
   await updateDailyPanel();
   showScene("summaryScene");
@@ -557,6 +614,7 @@ const attachEvents = () => {
 
     state.levelReports = [];
     state.totalPops = 0;
+    state.adaptiveSpeedBoost = 0;
     state.sessionStartTs = Date.now();
     startLevel(0);
   });
@@ -564,6 +622,8 @@ const attachEvents = () => {
 
   document.getElementById("saveSettingsBtn").addEventListener("click", async () => {
     state.settings.controlMode = els.controlModeSelect.value;
+    state.settings.speedMultiplier = Number(els.speedMultiplier.value || 0.6);
+    state.settings.adaptiveSpeed = Boolean(els.adaptiveSpeedToggle.checked);
     if (state.settings.controlMode === "camera") await beginCameraTracking();
     else stopCameraTracking();
     showScene("startScene");
@@ -604,6 +664,10 @@ const attachEvents = () => {
       els.taskText.textContent = state.currentTask.text;
       state.taskTimer = 30;
       els.taskTimer.textContent = String(state.taskTimer);
+      els.taskDoneBtn.disabled = true;
+      els.taskNotDoneBtn.disabled = true;
+      els.startTaskBtn.disabled = false;
+      if (els.taskGateMessage) els.taskGateMessage.textContent = "Complete the full timer to unlock feedback buttons.";
       showScene("taskScene");
       return;
     }
@@ -616,16 +680,27 @@ const attachEvents = () => {
 
   document.getElementById("startTaskBtn").addEventListener("click", () => {
     clearInterval(state.taskInterval);
+    els.startTaskBtn.disabled = true;
     state.taskInterval = setInterval(() => {
       state.taskTimer -= 1;
       els.taskTimer.textContent = String(Math.max(0, state.taskTimer));
       if (state.taskTimer <= 0) {
         clearInterval(state.taskInterval);
+        state.taskInterval = null;
+        els.taskDoneBtn.disabled = false;
+        els.taskNotDoneBtn.disabled = false;
+        if (els.taskGateMessage) els.taskGateMessage.textContent = "Timer completed. Please submit feedback to continue.";
       }
     }, 1000);
   });
-  document.getElementById("taskDoneBtn").addEventListener("click", () => runAssignedTask(true));
-  document.getElementById("taskNotDoneBtn").addEventListener("click", () => runAssignedTask(false));
+  document.getElementById("taskDoneBtn").addEventListener("click", () => {
+    if (state.taskTimer > 0) return;
+    runAssignedTask(true);
+  });
+  document.getElementById("taskNotDoneBtn").addEventListener("click", () => {
+    if (state.taskTimer > 0) return;
+    runAssignedTask(false);
+  });
 
   document.getElementById("downloadJsonBtn").addEventListener("click", () => saveBlob(`session-${Date.now()}.json`, JSON.stringify(buildSession(), null, 2), "application/json"));
   document.getElementById("downloadCsvBtn").addEventListener("click", () => {
@@ -641,6 +716,14 @@ const attachEvents = () => {
 const init = () => {
   if (els.appVersion) els.appVersion.textContent = VERSION;
   els.controlModeSelect.value = state.settings.controlMode;
+  if (els.speedMultiplier) els.speedMultiplier.value = String(state.settings.speedMultiplier);
+  if (els.speedMultiplierValue) els.speedMultiplierValue.textContent = `${state.settings.speedMultiplier.toFixed(1)}x`;
+  if (els.adaptiveSpeedToggle) els.adaptiveSpeedToggle.checked = state.settings.adaptiveSpeed;
+  if (els.speedMultiplier) {
+    els.speedMultiplier.addEventListener("input", () => {
+      els.speedMultiplierValue.textContent = `${Number(els.speedMultiplier.value).toFixed(1)}x`;
+    });
+  }
   attachEvents();
   showScene("authScene");
 };
