@@ -529,14 +529,16 @@ const attachEvents = () => {
 
   document.getElementById("settingsBtn").addEventListener("click", () => showScene("settingsScene"));
   document.getElementById("startBtn").addEventListener("click", () => {
-    if (state.patient?.patientName) {
-      state.levelReports = [];
-      state.totalPops = 0;
-      state.sessionStartTs = Date.now();
-      startLevel(0);
-    } else {
+    if (!state.activeUserId) {
+      els.authMessage.textContent = "Please login to start a session.";
       showScene("authScene");
+      return;
     }
+
+    state.levelReports = [];
+    state.totalPops = 0;
+    state.sessionStartTs = Date.now();
+    startLevel(0);
   });
   document.querySelectorAll("[data-back]").forEach((btn) => btn.addEventListener("click", () => showScene(btn.dataset.back)));
 
