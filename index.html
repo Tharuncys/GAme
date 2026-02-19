@@ -8,7 +8,7 @@
 </head>
 <body>
   <main id="app">
-    <section id="authScene" class="scene active card">
+    <section id="authScene" class="scene active card auth-card">
       <h1>🎈 Wrist Rehabilitation Therapy</h1>
       <p class="muted">Patient Login</p>
       <label>
@@ -22,7 +22,7 @@
       <div class="actions">
         <button id="loginBtn" class="primary">Login</button>
       </div>
-      <p class="hint">New user? <button id="openRegisterBtn" type="button">Register here</button></p>
+      <p class="hint">New user? <button id="openRegisterBtn" class="link-btn" type="button">Register here</button></p>
       <p id="authMessage" class="hint"></p>
     </section>
 
@@ -57,12 +57,12 @@
       </div>
     </section>
 
-    <section id="patientScene" class="scene card">
+    <section id="patientScene" class="scene card form-card">
       <h2>New User Registration + Patient Entry</h2>
-      <form id="registerForm">
+      <form id="registerForm" class="form-grid">
         <label>User ID <input id="registerUserId" required /></label>
         <label>Password <input id="registerUserPassword" type="password" required /></label>
-        <label>Patient Name <input id="patientName" required /></label>
+        <label class="full-width">Patient Name <input id="patientName" required /></label>
         <label>Age <input id="patientAge" type="number" min="1" max="120" required /></label>
         <label>
           Gender
@@ -76,7 +76,7 @@
           Time Since Stroke
           <select id="strokeTime"><option>&lt; 3 months</option><option>3–6 months</option><option>&gt; 6 months</option></select>
         </label>
-        <div class="actions">
+        <div class="actions full-width">
           <button type="submit" class="primary">Create Account</button>
           <button type="button" data-back="authScene">Back to Login</button>
         </div>
